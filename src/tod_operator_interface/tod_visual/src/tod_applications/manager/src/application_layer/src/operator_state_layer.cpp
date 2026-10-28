@@ -85,14 +85,14 @@ float comboWidth = (3 * buttonWidth) + (2 * spacing);  // 3 buttons + 2 gaps bet
 
 
     // IP Address Section
-    static char inputBuffer[16] = "10.0.0.10"; 
+    static char inputBuffer[16] = "127.0.0.1";
     ImGui::Text("IP Address Vehicle:");
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, (buttonHeight - ImGui::CalcTextSize("Example").y) * 0.5f));
 
     ImGui::SetNextItemWidth(comboWidth);
     if (ImGui::BeginCombo("##ipVehicle", inputBuffer)) {
 
-    static const char* ipVehicleOptions[] = { "10.0.0.10", "11.0.0.10" ,"127.0.0.1"};
+    static const char* ipVehicleOptions[] = { "127.0.0.1", "10.0.0.10", "11.0.0.10" };
     for (int i = 0; i < IM_ARRAYSIZE(ipVehicleOptions); i++) {
         if (ImGui::Selectable(ipVehicleOptions[i])) {
             strncpy(inputBuffer, ipVehicleOptions[i], sizeof(inputBuffer));
@@ -490,4 +490,3 @@ void OperatorStateLayer::UpdateState() {
             
     
 }
-

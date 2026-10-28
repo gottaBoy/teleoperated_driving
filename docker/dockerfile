@@ -5,6 +5,10 @@ ARG DOCKER_ROS_DISTRO=humble
 
 FROM ros:${DOCKER_ROS_DISTRO}-ros-base AS tod_base
 
+###--- Use mirrors for ARM64 Ubuntu and ROS 2 apt repositories ----###
+RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|https://mirrors.ustc.edu.cn/ubuntu-ports|g' /etc/apt/sources.list
+RUN rm -f /etc/apt/sources.list.d/ros2.list /etc/apt/sources.list.d/ros2.sources /etc/apt/sources.list.d/ros2*.sources /etc/apt/sources.list.d/ros2*.list /usr/share/keyrings/ros-archive-keyring.gpg
+
 ARG DOCKER_USERNAME
 ARG DOCKER_UID
 ARG DOCKER_GID
@@ -23,17 +27,10 @@ RUN groupadd --gid ${DOCKER_GID} ${DOCKER_USERNAME} \
 ENV DOCKER_USERNAME=${DOCKER_USERNAME}
 
 ###--- Remove old GPG key and update ---###
-RUN set -eux; \
-    rm -f /etc/apt/sources.list.d/ros2*.list \
-          /etc/apt/sources.list.d/ros2*.sources \
-          /usr/share/keyrings/ros-archive-keyring.gpg; \
-    apt-get update && \
-    apt-get install -y --no-install-recommends curl gnupg2 ca-certificates; \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-      | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg; \
-    echo "deb [arch=$(dpkg --print-architecture) \
+COPY ./docker/ros-archive-keyring.gpg /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) \
         signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
-        http://packages.ros.org/ros2/ubuntu \
+        https://mirrors.tuna.tsinghua.edu.cn/ros2/ubuntu \
         $(. /etc/os-release && echo $VERSION_CODENAME) main" \
       > /etc/apt/sources.list.d/ros2.list
 
@@ -86,6 +83,17 @@ COPY ./docker/entrypoint.sh /
 RUN ["chmod", "+x", "/entrypoint.sh"]
 ENTRYPOINT [ "/entrypoint.sh" ]
 
+###--- Use domestic mirrors for rosdep and rosdistro metadata ----------------###
+RUN rm -f /etc/ros/rosdep/sources.list.d/*.list \
+    && mkdir -p /usr/local/etc/ros/rosdep/sources.list.d \
+    && printf '%s\n' \
+        'yaml https://mirrors.tuna.tsinghua.edu.cn/rosdistro/rosdep/base.yaml' \
+        'yaml https://mirrors.tuna.tsinghua.edu.cn/rosdistro/rosdep/python.yaml' \
+        'yaml https://mirrors.tuna.tsinghua.edu.cn/rosdistro/rosdep/ruby.yaml' \
+        > /usr/local/etc/ros/rosdep/sources.list.d/20-default.list
+ENV ROSDISTRO_INDEX_URL=https://mirrors.tuna.tsinghua.edu.cn/rosdistro/index-v4.yaml
+ENV ROSDEP_SOURCE_PATH=/usr/local/etc/ros/rosdep/sources.list.d
+
 
 ###################################################################################
 ###--- tod_vehicle_base --Base-Extension----------------------------------------###
@@ -100,7 +108,8 @@ USER ${DOCKER_USERNAME}
 ###--- Install dependencies via rosdep -----------------------------------------###
 RUN --mount=type=bind,source=src,target=/home/${DOCKER_USERNAME}/wsp/src \
     rosdep update \
-    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y 
+    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+        --skip-keys "autoware_auto_vehicle_msgs autoware_auto_control_msgs autoware_auto_planning_msgs autoware_auto_perception_msgs autoware_adapi_v1_msgs tier4_external_api_msgs"
 
 ###--- Source entrypoint -------------------------------------------------------###
 RUN echo "source /entrypoint.sh" >> /home/${DOCKER_USERNAME}/.bashrc
@@ -163,7 +172,8 @@ USER ${DOCKER_USERNAME}
 WORKDIR /home/${DOCKER_USERNAME}/wsp
 RUN --mount=type=bind,source=src,target=/home/${DOCKER_USERNAME}/wsp/src \
     rosdep update \
-    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y
+    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+        --skip-keys "autoware_auto_vehicle_msgs autoware_auto_control_msgs autoware_auto_planning_msgs autoware_auto_perception_msgs autoware_adapi_v1_msgs tier4_external_api_msgs"
 
 ###--- Source entrypoint -------------------------------------------------------###
 RUN echo "source /entrypoint.sh" >> /home/${DOCKER_USERNAME}/.bashrc

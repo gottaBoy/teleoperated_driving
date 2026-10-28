@@ -9,3 +9,5 @@ src/external/*
 !.dev_artifacts/install/.gitkeep
 !.dev_artifacts/log/.gitkeep
 !src/external/tum/
+.vscode/*
+!.vscode/settings.json
